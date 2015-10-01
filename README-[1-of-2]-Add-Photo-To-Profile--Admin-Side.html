@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font-family: arial, verdana, sans-serif; font-size: 15px; line-height: 26px; margin-right: 0; }
+  .instructions { margin-left: 30px; }
+  pre { background-color: #ccc; margin-left: 30px; padding: 12px 0 12px 22px; }
+
+  .heading { font-size: 20px; text-align: center; margin: 42px; }
+  .file { padding: 16px 15px 11px 15px; background-color: #fcea23; }
+  .step { background-color: lightgreen; padding: 5px; }
+  .first { margin-top: 24px; }
+</style>
+</head>
+
+<body>
+
+<p>
+	ALWAYS MAKE BACKUP COPIES OF INVOLVED FILES (DATABASES) BEFORE INSTALLING PLUGINS!<br />
+
+	Currently, this Plugin/Addon is only compatible with <strong>Zen Cart</strong> v.<strong>1.5.4</strong>.<br />
+
+	I strongly recommend doing the Manual Installation! I.e. It is best to EDIT files of your own Zen-Cart store instead of REPLACE files.<br /><br />
+	
+	<strong>Part 1 of 2 (Admin side):</strong> Adds a Photo option to each User's/Customer's account <strong>only visible to the Admin at the backend</strong>. Admin can go through accounts and Add/View/Update photos.<br />
+
+	<strong>Part 2 of 2 (User side):</strong> Enables the Users to Add/View/Update a photo in their accounts.<br /><br />
+
+	<strong>Part 1 of 2 is self-sufficient - which means that Part 2 of 2 is optional.</strong>
+</p>
+
+<p class="heading">
+	<strong>[--------- Manual Installation of Add-Photo-To-Profile: Part 1 of 2 (Admin side). ---------]</strong>
+</p>
+
+<span class="file">
+	<span style="font-size: 26px; font-weight: bold;">Database:</span>
+</span>
+
+<p class="instructions first">
+	<span class="step">Only step:</span> Go to table <em>customers</em> and add a new column named <em>customers_photo</em>:
+</p>
+
+<pre>
+Column Name: customers_photo
+Type: varchar(64)
+Collation: [Choose the collation you're already using for the store]
+Attributes: [None]
+Null: Yes
+Default: NULL
+</pre>
+
+
+<div style="border-top: 2px dashed #000; padding: 12px; margin-top: 36px;">&nbsp;</div>
+
+
+<span class="file">
+	<span style="font-size: 26px; font-weight: bold;">New Folder:</span>
+</span>
+
+<p class="instructions first">
+	<span class="step">Only step:</span> Create a folder named <em>profile-photos</em> in /images/ and put in it the file <em>no-photo.gif</em><br />
+
+<pre style="background-color: #fff;">
+<span class="step">CORRECT LOCATION: /images/profile-photos/no-photo.gif</span><br />
+<span style="background-color: lightpink; padding: 5px;">THIS IS WRONG: /includes/templates/YOUR_TEMPLATE/images/profile-photos/no-photo.gif</span>
+</pre>
+</p>
+
+
+<div style="border-top: 2px dashed #000; padding: 12px; margin-top: 36px;">&nbsp;</div>
+
+
+<span class="file">
+	<span style="font-size: 26px; font-weight: bold;">File 1:</span> &nbsp; /ADMIN/customers.php
+</span>
+
+<p class="instructions first">
+	<span class="step">STEP 1:</span> Find this line:
+</p>
+
+<pre>
+$currencies = new currencies();
+</pre>
+
+<p class="instructions">
+	and right after it add this block of code:
+</p>
+
+<pre>
+$allowedExts = array( "jpeg", "jpg", "png", "gif" );
+$extension_ph = end( explode(".", $_FILES["file_ph"]["name"]) );
+$PhotoSent = $PhotoFileTypeOK = false;
+
+if ( $_FILES["file_ph"]["size"] > 1 ){
+	$PhotoSent = true;
+
+	if ( in_array( $extension_ph, $allowedExts ) && $_FILES["file_ph"]["size"]<1048576 ){
+		$PhotoFileTypeOK = true;
+	}
+}
+
+if ( $PhotoSent && $PhotoFileTypeOK ){
+	$cust_id = $_GET["cID"];
+	$photo_name = $cust_id . "." . $extension_ph;
+
+	move_uploaded_file( $_FILES["file_ph"]["tmp_name"], DIR_FS_CATALOG . "images/profile-photos/" . $photo_name );
+	chmod( DIR_FS_CATALOG . "images/profile-photos/" . $photo_name, 0755 );
+
+	if ( $_FILES["file_ph"]["error"] > 0 ){
+		echo "Error uploading file&lt;br /&gt;";
+		echo "Return Code: " . $_FILES["file_ph"]["error"] . "&lt;br /&gt;";
+	}
+}
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 2:</span> Find this line:
+</p>
+
+<pre>
+$customers_dob = (empty($_POST['customers_dob']) ? zen_db_prepare_input('0001-01-01 00:00:00') : zen_db_prepare_input($_POST['customers_dob']));
+</pre>
+
+<p class="instructions">
+	and right after it add:
+</p>
+
+<pre>
+$customers_photo = $photo_name ? zen_db_prepare_input($photo_name) : zen_db_prepare_input($_POST["cust_photo"]);
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 3:</span> Find this line:
+</p>
+
+<pre>
+$sql_data_array = array('customers_firstname' => $customers_firstname,
+</pre>
+
+<p class="instructions">
+	and add this element to that array: <em>'customers_photo' => $customers_photo</em><br />(Please observe commas!) Here's what the final array could look like:
+</p>
+
+<pre>
+$sql_data_array = array('customers_firstname' => $customers_firstname,
+	'customers_lastname' => $customers_lastname,
+	'customers_email_address' => $customers_email_address,
+	'customers_telephone' => $customers_telephone,
+	'customers_fax' => $customers_fax,
+	'customers_group_pricing' => $customers_group_pricing,
+	'customers_newsletter' => $customers_newsletter,
+	'customers_email_format' => $customers_email_format,
+	'customers_authorization' => $customers_authorization,
+	'customers_referral' => $customers_referral,
+	'customers_photo' => $customers_photo
+);
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 4:</span> Find this code:
+</p>
+
+<pre>
+c.customers_email_format, c.customers_group_pricing,
+c.customers_authorization, c.customers_referral
+</pre>
+
+<p class="instructions">
+	and add <em>", c.customers_photo"</em> after it. Here is the final code:
+</p>
+
+<pre>
+c.customers_email_format, c.customers_group_pricing,
+c.customers_authorization, c.customers_referral, c.customers_photo
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 5:</span> Find this JavaScript function:
+</p>
+
+<pre>
+function init()
+{
+	cssjsmenu('navbar');
+	if (document.getElementById)
+	{
+	var kill = document.getElementById('hoverJS');
+	kill.disabled = true;
+	}
+}
+</pre>
+
+<p class="instructions">
+	and add another one after it:
+</p>
+
+<pre>
+function process_photo(){
+    var obj_nav = navigator.appVersion;
+    var file_obj = document.getElementById("file_ph");
+    var img_obj = document.getElementById("cust_img");
+    var photo_alert_obj = document.getElementById("photo_alert");
+    var allowed_ext = ["image/jpg", "image/jpeg", "image/png", "image/gif"];
+    var file_is_ok = allowed_ext.indexOf(file_obj.files[0].type);
+    
+    if ( (file_obj.files[0].size > 1048576) || (file_is_ok < 0) ){
+    	document.forms["acc_edit_form"].reset();
+    	alert( "Sorry, this file is too large or of the wrong type!" );
+    	photo_alert_obj.style.display = "none";
+    }
+    else {
+    	photo_alert_obj.style.display = "block";
+    }
+}
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 6:</span> Find this line:
+</p>
+
+<pre>
+&lt;tr&gt;&lt;?php echo zen_draw_form('customers', FILENAME_CUSTOMERS, zen_get_all_get_params(array('action')) . 'action=update', 'post', 'onsubmit="return check_form(customers);"', true) . zen_draw_hidden_field('default_address_id', $cInfo->customers_default_address_id);
+</pre>
+
+<p class="instructions">
+	and REPLACE it with:
+</p>
+
+<pre>
+&lt;tr&gt;&lt;?php echo zen_draw_form('customers', FILENAME_CUSTOMERS, zen_get_all_get_params(array('action')) . 'action=update', 'post', 'onsubmit="return check_form(customers);" id="acc_edit_form" enctype="multipart/form-data"', true) . zen_draw_hidden_field('default_address_id', $cInfo->customers_default_address_id);
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 7:</span> Find this code:
+</p>
+
+<pre>
+	array('id' => '4', 'text' => CUSTOMERS_AUTHORIZATION_4), // banned
+	);
+?&gt;
+</pre>
+
+<p class="instructions">
+	and right after it add:
+</p>
+
+<pre>
+	&lt;tr&gt;
+		&lt;td class="main"&gt;&lt;?php echo "Photo:"; ?&gt;&lt;/td&gt;
+		&lt;td class="main"&gt;
+&lt;?php
+	if ( $cInfo->customers_photo ) {
+		$no_cache = rand();
+		$cust_photo_path = "../images/profile-photos/" . $cInfo->customers_photo . "?no_cache=" . $no_cache;
+	}
+	else {
+		$cust_photo_path = "../images/profile-photos/no-photo.gif";
+	}
+?&gt;
+			&lt;img id="cust_img" src="&lt;?php echo $cust_photo_path; ?&gt;" style="width: 152px; border: 1px solid #b4cade" alt="" /&gt;
+
+			&lt;br /&gt;&lt;br /&gt;
+			&lt;span class="form_titles"&gt;&lt;?php echo (!$cInfo->customers_photo) ? "Add" : "Update"; ?&gt; Photo&lt;/span&gt; &lt;span style="font-size: 11px; color: #777;"&gt;(JPG, PNG, or GIF; Up to 1.0MB)&lt;/span&gt;:&lt;br /&gt;
+			&lt;input type="hidden" value="1048576" name="MAX_FILE_SIZE" /&gt;
+			&lt;input name="file_ph" id="file_ph" type="file" onchange="process_photo()" size="35" /&gt;
+			&lt;div id="photo_alert" style="display: none; padding: 4px; color: #fff; background-color: #f00; text-align: center; font-weight: bold;"&gt;Click [Update] to upload new photo!&lt;/div&gt;
+			&lt;?php echo ($cInfo->customers_photo) ? "&lt;div style='font-size: 11px; color: darkred; margin-top: 5px'&gt;(Updating will delete the old photo from the store permanently!)&lt;/div&gt;" : ""; ?&gt;
+
+			&lt;br /&gt;&lt;br /&gt;
+			&lt;input type="hidden" name="cust_photo" value="&lt;?php echo $cInfo->customers_photo; ?&gt;" /&gt;
+			&lt;input type="hidden" name="cust_id" value="&lt;?php echo $cInfo->customers_id; ?&gt;" /&gt;
+		&lt;/td&gt;
+	&lt;/tr&gt;
+</pre>
+
+<p>&nbsp;</p>
+
+<p class="heading">
+	<strong>[--------- You're done with the Admin side! Please test and if you like the result, feel free to install 2 of 2 (User side) ---------]</strong>
+</p>
+
+</body>
+</html>

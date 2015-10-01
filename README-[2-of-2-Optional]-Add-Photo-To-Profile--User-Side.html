@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font-family: arial, verdana, sans-serif; font-size: 15px; line-height: 26px; margin-right: 0; }
+  .instructions { margin-left: 30px; }
+  pre { background-color: #ccc; margin-left: 30px; padding: 12px 0 12px 22px; }
+
+  .heading { font-size: 20px; text-align: center; margin: 42px; }
+  .file { padding: 16px 15px 11px 15px; background-color: #fcea23; }
+  .step { background-color: lightgreen; padding: 5px; }
+  .first { margin-top: 24px; }
+</style>
+</head>
+
+<body>
+
+<p>
+	This is <strong>Part 2 of 2</strong> of the Add-Photo-To-Profile plugin. It will add a Photo to Users' accounts in your store in a way that each user is able to Add/View/Update their own photo.<br />
+	
+	<strong>Installation of Part 1 of 2 (Admin side) is required <u>before</u> installing this!</strong><br /><br />
+
+	Currently, this Plugin/Addon is only compatible with <strong>Zen Cart</strong> v.<strong>1.5.4</strong>.<br />
+
+	I strongly recommend doing Manual installation! I.e. It is best to EDIT files of your own Zen-Cart store instead of REPLACE files.<br />
+</p>
+
+<p class="heading">
+	<strong>[--------- Manual Installation of Part 2 of 2 (User side) of Add-Photo-To-Profile plugin. ---------]</strong>
+</p>
+
+<span class="file">
+	<span style="font-size: 26px; font-weight: bold;">File 1:</span> &nbsp; /includes/modules/pages/account_edit/header_php.php
+</span>
+
+<p class="instructions first">
+	<span class="step">STEP 1:</span> Find this line:
+</p>
+
+<pre>
+require(DIR_WS_MODULES . zen_get_module_directory('require_languages.php'));
+</pre>
+
+<p class="instructions">
+	and right after it add this block of code:
+</p>
+
+<pre>
+$allowedExts = array( "jpeg", "jpg", "png", "gif" );
+$extension_ph = end( explode(".", $_FILES["file_ph"]["name"]) );
+$PhotoSent = $PhotoFileTypeOK = false;
+
+if ( $_FILES["file_ph"]["size"] > 1 ){
+	$PhotoSent = true;
+
+	if ( in_array( $extension_ph, $allowedExts ) && $_FILES["file_ph"]["size"]<1048576 ){
+		$PhotoFileTypeOK = true;
+	}
+}
+
+if ( $PhotoSent && $PhotoFileTypeOK ){
+	$cust_id = $_SESSION["customer_id"];
+	$photo_name = $cust_id . "." . $extension_ph;
+
+	move_uploaded_file( $_FILES["file_ph"]["tmp_name"], DIR_FS_CATALOG . "images/profile-photos/" . $photo_name );
+	chmod( DIR_FS_CATALOG . "images/profile-photos/" . $photo_name, 0755 );
+
+	if ( $_FILES["file_ph"]["error"] > 0 ){
+		echo "Error uploading file&lt;br /&gt;";
+		echo "Return Code: " . $_FILES["file_ph"]["error"] . "&lt;br /&gt;";
+	}
+}
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 2:</span> Find this line:
+</p>
+
+<pre>
+$email_format = zen_db_prepare_input($_POST['email_format']);
+</pre>
+
+<p class="instructions">
+	and right after it add:
+</p>
+
+<pre>
+if ( $PhotoSent && $PhotoFileTypeOK ) $photo = zen_db_prepare_input($photo_name);
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 3:</span> Find this line:
+</p>
+
+<pre>
+$phpBB->phpbb_change_email(zen_db_input($old_addr_check->fields['customers_email_address']),zen_db_input($email_address));
+</pre>
+
+<p class="instructions">
+	and right after it add:
+</p>
+
+<pre>
+if ( $PhotoSent && $PhotoFileTypeOK ){
+	$photo_entry = array('fieldName'=>'customers_photo', 'value'=>$photo, 'type'=>'string');
+}
+else {
+	$tmp_qry = $db->Execute("select customers_photo from " . TABLE_CUSTOMERS . " where customers_id='".(int)$_SESSION['customer_id']."'");
+	$photo_entry = array('fieldName'=>'customers_photo', 'value'=>$tmp_qry->fields['customers_photo'], 'type'=>'string');
+}
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 4:</span> Near there, find:
+</p>
+
+<pre>
+$sql_data_array = array(array('fieldName'=>'customers_firstname', 'value'=>$firstname, 'type'=>'string'),
+				array('fieldName'=>'customers_lastname', 'value'=>$lastname, 'type'=>'string'),
+				array('fieldName'=>'customers_email_address', 'value'=>$email_address, 'type'=>'string'),
+				array('fieldName'=>'customers_telephone', 'value'=>$telephone, 'type'=>'string'),
+				array('fieldName'=>'customers_fax', 'value'=>$fax, 'type'=>'string'),
+				array('fieldName'=>'customers_email_format', 'value'=>$email_format, 'type'=>'string')
+);
+</pre>
+
+<p class="instructions">
+	and add 1 new element (the variable $photo_entry) to that array. Here's how the new array should look:
+</p>
+
+<pre>
+$sql_data_array = array(array('fieldName'=>'customers_firstname', 'value'=>$firstname, 'type'=>'string'),
+				array('fieldName'=>'customers_lastname', 'value'=>$lastname, 'type'=>'string'),
+				array('fieldName'=>'customers_email_address', 'value'=>$email_address, 'type'=>'string'),
+				array('fieldName'=>'customers_telephone', 'value'=>$telephone, 'type'=>'string'),
+				array('fieldName'=>'customers_fax', 'value'=>$fax, 'type'=>'string'),
+				array('fieldName'=>'customers_email_format', 'value'=>$email_format, 'type'=>'string'),
+				$photo_entry
+);
+</pre>
+
+<p class="instructions">
+	<span class="step">STEP 5:</span> Find this line:
+</p>
+
+<pre>
+customers_fax, customers_email_format, customers_referral
+</pre>
+
+<p class="instructions">
+	and REPLACE it with:
+</p>
+
+<pre>
+customers_fax, customers_email_format, customers_referral, customers_photo
+</pre>
+
+
+<p>&nbsp;</p>
+
+
+<span class="file">
+	<span style="font-size: 26px; font-weight: bold;">File 2:</span> &nbsp; /includes/modules/pages/account_edit/jscript_form_check.php
+</span>
+
+<p class="instructions first">
+	<span class="step">STEP 1:</span> Find this line:
+</p>
+
+<pre>
+//--&gt;&lt;/script&gt;
+</pre>
+
+<p class="instructions">
+	and REPLACE it with:
+</p>
+
+<pre>
+ 
+function process_photo(){
+    var obj_nav = navigator.appVersion;
+    var file_obj = document.getElementById("file_ph");
+    var img_obj = document.getElementById("cust_img");
+    var photo_alert_obj = document.getElementById("photo_alert");
+    var allowed_ext = ["image/jpg", "image/jpeg", "image/png", "image/gif"];
+    var file_is_ok = allowed_ext.indexOf(file_obj.files[0].type);
+
+    if ( (file_obj.files[0].size > 1048576) || (file_is_ok < 0) ){
+    	document.forms["acc_edit_form"].reset();
+    	alert( "Sorry, this file is too large or of the wrong type!" );
+    	photo_alert_obj.style.display = "none";
+    }
+    else {
+    	photo_alert_obj.style.display = "block";
+    }
+}
+//--&gt;&lt;/script&gt;
+</pre>
+
+
+<p>&nbsp;</p>
+
+
+<span class="file">
+	<span style="font-size: 26px; font-weight: bold;">File 3:</span> &nbsp; /includes/templates/YOUR_TEMPLATE/templates/tpl_account_edit_default.php
+</span>
+
+<p class="instructions first">
+	<span class="step">STEP 1:</span> Find this line:
+</p>
+
+<pre>
+&lt;?php echo zen_draw_form('account_edit', zen_href_link(FILENAME_ACCOUNT_EDIT, '', 'SSL'), 'post', 'onsubmit="return check_form(account_edit);"') . zen_draw_hidden_field('action', 'process'); ?&gt;
+</pre>
+
+<p class="instructions">
+	and REPLACE it with:
+</p>
+
+<pre>
+&lt;?php echo zen_draw_form('account_edit', zen_href_link(FILENAME_ACCOUNT_EDIT, '', 'SSL'), 'post', 'id="acc_edit_form" onsubmit="return check_form(account_edit);" enctype="multipart/form-data"') . zen_draw_hidden_field('action', 'process'); ?&gt;
+</pre>
+
+<p class="instructions first">
+	<span class="step">STEP 2:</span> Find this code:
+</p>
+
+<pre>
+&lt;div class="alert forward"&gt;&lt;?php echo FORM_REQUIRED_INFORMATION; ?&gt;&lt;/div&gt;
+&lt;br class="clearBoth" /&gt;
+</pre>
+
+<p class="instructions">
+	and right after it add:
+</p>
+
+<pre>
+&lt;?php
+	if ( $account->fields["customers_photo"] ) {
+		$no_cache = rand();
+		$cust_photo_path = "profile-photos/" . $account->fields["customers_photo"] . "?no_cache=" . $no_cache;
+	}
+	else {
+		$cust_photo_path = "profile-photos/no-photo.gif";
+	}
+?&gt;
+
+&lt;img id="cust_img" width="152" src="&lt;?= DIR_WS_IMAGES . $cust_photo_path ?&gt;" alt="" /&gt;
+&lt;br /&gt;&lt;br /&gt;&lt;span class="form_titles"&gt;&lt;?php echo (!$account->fields["customers_photo"]) ? "Add" : "Update"; ?&gt; Photo&lt;/span&gt; &lt;span style="font-size: 11px; color: #777;"&gt;(JPG, PNG, or GIF; Up to 1.0MB)&lt;/span&gt;:&lt;br /&gt;
+&lt;input type="hidden" value="1048576" name="MAX_FILE_SIZE" /&gt;
+&lt;input name="file_ph" id="file_ph" type="file" onchange="process_photo()" size="35" /&gt;
+&lt;div id="photo_alert" style="display: none; padding: 4px; color: #fff; background-color: #f00; text-align: center; font-weight: bold;"&gt;Click [Update] to upload new photo!&lt;/div&gt;
+&lt;?php
+	echo ($account->fields["customers_photo"]) ? "&lt;div style='font-size: 11px; color: darkred;'&gt;(Updating will delete the old photo from the store permanently!)&lt;/div&gt;" : "";
+?&gt;
+&lt;br class="clearBoth" /&gt;&lt;br /&gt;&lt;br /&gt;
+</pre>
+
+
+
+
+
+
+<p class="heading">
+	<strong>[--------- All set! Enjoy! ---------]</strong>
+</p>
+
+</body>
+</html>
